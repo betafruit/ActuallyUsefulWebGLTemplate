@@ -1,0 +1,155 @@
+<!-- Modifed by BetaFruit from https://github.com/seleb/Better-Minimal-WebGL-Template -->
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>{{{ PRODUCT_NAME }}}</title>
+	<style>
+		html,
+		body {
+			background: #000; /* Change this if you want different coloured letterboxing */
+			width: 100%;
+			height: 100%;
+			overflow: visible;
+			padding: 0;
+			margin: 0;
+		}
+
+		div#game-container { background: {{{ BACKGROUND_COLOR || '#000' }}} !important; position: absolute; }
+		div#game-container canvas { position: absolute; }
+
+		div#game-container canvas[data-pixel-art="true"] {
+			position: absolute;
+			image-rendering: optimizeSpeed;
+			image-rendering: -webkit-crisp-edges;
+			image-rendering: -moz-crisp-edges;
+			image-rendering: -o-crisp-edges;
+			image-rendering: crisp-edges;
+			image-rendering: -webkit-optimize-contrast;
+			image-rendering: optimize-contrast;
+			image-rendering: pixelated;
+			-ms-interpolation-mode: nearest-neighbor;
+		}
+
+		div#progress-bar-container { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+		img#custom-logo { width: 154px; height: auto; }
+		div#progress-bar {
+			width: 137px;
+			height: 14px;
+			margin-top: 10px;
+			margin-left: 6.5px;
+			border-style: solid;
+			border-width: 2px;
+			border-color: #fff;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="game-container"> <!-- https://github.com/betafruit/ActuallyUsefulWebGLTemplate -->
+		<canvas id="unity-canvas" width="{{{ WIDTH }}}" height="{{{ HEIGHT }}}" data-pixel-art="{{{ OPTIMIZE_FOR_PIXEL_ART }}}"></canvas>
+		<script src="Build/{{{ LOADER_FILENAME }}}"></script>
+		<div id="progress-bar-container">
+			<img id="custom-logo" src="custom_logo.png"></img>
+			<div id="progress-bar"></div>
+		</div>
+		<script>
+			var canvas = document.querySelector("#unity-canvas");
+			var loadingBar = document.querySelector("#progress-bar");
+			var config = {
+				dataUrl: "Build/{{{ DATA_FILENAME }}}",
+				frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+				codeUrl: "Build/{{{ CODE_FILENAME }}}",
+#if MEMORY_FILENAME
+				memoryUrl: "Build/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+				symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
+#endif
+				streamingAssetsUrl: "StreamingAssets",
+				companyName: "{{{ COMPANY_NAME }}}",
+				productName: "{{{ PRODUCT_NAME }}}",
+				productVersion: "{{{ PRODUCT_VERSION }}}",
+			};
+
+			var preserveAspect;
+			try {
+				preserveAspect = !!JSON.parse("{{{ PRESERVE_ASPECT_RATIO }}}");
+			} catch (e) {
+				preserveAspect = false; // Always default to false
+			}
+
+			function parseAspectRatio(str) { // Checks for <width>:<height> and returns width/height
+				try {
+					const parts = String(str).split(":").map(Number);
+					if (parts.length === 2 && parts.every(n => !isNaN(n) && n > 0)) {
+						return parts[0] / parts[1];
+					}
+				} catch (_) {}
+				return 0; // Return 0 if parsing fails
+			}
+
+			// Make sure minimum is minimum and maximum is maximum (these are easy to mix up when inputing the variables)
+			let aspect1 = parseAspectRatio("{{{ MINIMUM_ASPECT_RATIO }}}");
+			let aspect2 = parseAspectRatio("{{{ MAXIMUM_ASPECT_RATIO }}}");
+			var minAspect = Math.min(aspect1, aspect2);
+			var maxAspect = Math.max(aspect1, aspect2);
+
+			var loadingBarColour = "{{{ LOADING_BAR_COLOUR_HEX_CODE }}}";
+			function progressHandler(progress) {
+				var percent = progress * 100 + '%';
+				loadingBar.style.background = 'linear-gradient(to right, ' + loadingBarColour + ', ' + loadingBarColour + ' ' + percent + ', transparent ' + percent + ', transparent) no-repeat center';
+			}
+
+			function onResize() {
+				var container = canvas.parentElement;
+				var w = window.innerWidth;
+				var h = window.innerHeight;
+
+				if (preserveAspect || minAspect !== 0 || maxAspect !== 0) { // Skip this block if no constraints are set on the aspect ratio
+					var a = {{{ WIDTH }}} / {{{ HEIGHT }}};
+					if (!preserveAspect) { // If the aspect ratio is not being preserved, calculate the current one and then constrain it
+						a = w / h;
+						if (minAspect !== 0 && a < minAspect) {
+							a = minAspect;
+						}
+						if (maxAspect !== 0 && a > maxAspect) {
+							a = maxAspect;
+						}
+					}
+
+					// Calculate height and width from new aspect ratio
+					if (h * a > window.innerWidth) {
+						h = Math.min(h, w / a);
+					}
+					w = Math.floor(h * a);
+					h = Math.floor(h);
+				}
+
+				// Apply height and width
+				container.style.width = canvas.style.width = w + "px";
+				container.style.height = canvas.style.height = h + "px";
+				container.style.top = Math.floor((window.innerHeight - h) / 2) + "px";
+				container.style.left = Math.floor((window.innerWidth - w) / 2) + "px";
+			}
+			createUnityInstance(canvas, config, progressHandler).then(function (instance) {
+				canvas = instance.Module.canvas;
+				document.querySelector("#progress-bar-container").style.display = "none"; // Hide loading screen
+				onResize(); // Initial resize
+			});
+			window.addEventListener('resize', onResize);
+			onResize();
+
+			if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) { // Fill the whole browser on mobile (aspect ratio constraints still apply)
+				const meta = document.createElement('meta');
+				meta.name = 'viewport';
+				meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+				document.getElementsByTagName('head')[0].appendChild(meta);
+			}
+		</script>
+	</div>
+</body>
+
+</html>
