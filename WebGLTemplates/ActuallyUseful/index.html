@@ -18,7 +18,7 @@
 		}
 
 		div#game-container { background: {{{ BACKGROUND_COLOR || '#000' }}} !important; position: absolute; }
-		div#game-container canvas { position: absolute; }
+		div#game-container canvas { position: absolute; will-change: width, height; }
 
 		div#game-container canvas[data-pixel-art="true"] {
 			position: absolute;
@@ -44,12 +44,13 @@
 			border-width: 2px;
 			border-color: #fff;
 		}
+
 	</style>
 </head>
 
 <body>
 	<div id="game-container"> <!-- https://github.com/betafruit/ActuallyUsefulWebGLTemplate -->
-		<canvas id="unity-canvas" width="{{{ WIDTH }}}" height="{{{ HEIGHT }}}" data-pixel-art="{{{ OPTIMIZE_FOR_PIXEL_ART }}}"></canvas>
+		<canvas id="unity-canvas" width="{{{ WIDTH }}}" height="{{{ HEIGHT }}}"  tabindex="-1" data-pixel-art="{{{ OPTIMIZE_FOR_PIXEL_ART }}}"></canvas>
 		<script src="Build/{{{ LOADER_FILENAME }}}"></script>
 		<div id="progress-bar-container">
 			<img id="custom-logo" src="custom_logo.png"></img>
@@ -99,7 +100,7 @@
 
 			var loadingBarColour = "{{{ LOADING_BAR_COLOUR_HEX_CODE }}}";
 			function progressHandler(progress) {
-				var percent = progress * 100 + '%';
+				var percent = (progress * 100) + '%';
 				loadingBar.style.background = 'linear-gradient(to right, ' + loadingBarColour + ', ' + loadingBarColour + ' ' + percent + ', transparent ' + percent + ', transparent) no-repeat center';
 			}
 
@@ -136,11 +137,23 @@
 			}
 			createUnityInstance(canvas, config, progressHandler).then(function (instance) {
 				canvas = instance.Module.canvas;
-				document.querySelector("#progress-bar-container").style.display = "none"; // Hide loading screen
-				onResize(); // Initial resize
+
+				// Hide loading screen
+				document.querySelector("#progress-bar-container").style.opacity = "0";
+				document.querySelector("#progress-bar-container").style.pointerEvents = "none";
+
+				onResize();
 			});
-			window.addEventListener('resize', onResize);
-			onResize();
+			let resizeTimeout;
+			window.addEventListener('resize', () => {
+				clearTimeout(resizeTimeout);
+				resizeTimeout = setTimeout(onResize, 100);
+			});
+			document.addEventListener('fullscreenchange', () => {
+				onResize();
+			});
+
+			onResize(); // Initial resize
 
 			if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) { // Fill the whole browser on mobile (aspect ratio constraints still apply)
 				const meta = document.createElement('meta');
